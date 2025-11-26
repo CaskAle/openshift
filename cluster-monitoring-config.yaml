@@ -5,19 +5,15 @@ metadata:
   namespace: openshift-monitoring
 data:
   config.yaml: |
-    enableUserWorkload: false
-    metricsServer:
-      nodeSelector:
-        node-role.kubernetes.io/infra: ''
-      tolerations:
-        - key: "node.ocs.openshift.io/storage"
-          operator: "Equal"
-          value: "true"
-          effect: "NoSchedule"
+    prometheusK8s:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 40Gi
     alertmanagerMain:
       volumeClaimTemplate:
-       spec:
-         storageClassName: lvms-vg1
-         resources:
-           requests:
-             storage: 1Gi
+        spec:
+          resources:
+            requests:
+              storage: 40Gi
