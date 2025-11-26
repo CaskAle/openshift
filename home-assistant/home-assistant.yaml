@@ -1,0 +1,135 @@
+﻿---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: home-assistant
+  labels:
+    app: home-assistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: home-assistant
+  template:
+    metadata:
+      namespace: home-assistant
+      labels:
+        app: home-assistant
+    spec:
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: home-assistant-pvc
+      containers:
+        - name: home-assistant
+          image: >-
+            itzg/minecraft-server@sha256:818b1b2ffbc78dfa6c27115b1a0ccace4779de4df8d34d87006a60831e2ed13b
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+          ports:
+            - containerPort: 25575
+              protocol: TCP
+            - containerPort: 25565
+              protocol: TCP
+          env:
+            - name: EULA
+              value: 'true'
+            - name: TZ
+              value: America/Chicago
+            - name: OPS
+              value: EmeraldDen,TubOfGoo
+            - name: MAX_MEMORY
+              value: '6G'
+          resources:
+            limits:
+              cpu: '2'
+              memory: 8Gi
+            requests:
+              cpu: '1'  
+          volumeMounts:
+            - name: data-volume
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command:
+                - mc-monitor
+                - status
+                - '--host'
+                - localhost
+                - '--port'
+                - '25565'
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  namespace: home-assistant
+  name: home-assistant-pvc
+  labels:
+    app: home-assistant
+spec:
+  selector:
+    matchLabels:
+      app: home-assistant
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+  volumeMode: Filesystem
+  storageClassName: nfs-wait
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: home-assistant-pv
+  labels:
+    app: home-assistant
+spec:
+  capacity:
+    storage: 500Mi 
+  accessModes:
+  - ReadWriteOnce
+  nfs: 
+    path: /volume1/ocp-home-assistant
+    server: brixton.ankersen.dev
+  storageClassName: nfs-wait
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: home-assistant
+  name: home-assistant-ingress
+  labels:
+    app: home-assistant
+spec:
+  ports:
+    - name: port-rcon
+      protocol: TCP
+      port: 25575
+      targetPort: 25575
+      nodePort: 30075
+    - name: port-game
+      protocol: TCP
+      port: 25565
+      targetPort: 25565
+      nodePort: 30065
+  type: NodePort
+  selector:
+    app: home-assistant

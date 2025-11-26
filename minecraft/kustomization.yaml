@@ -1,0 +1,5 @@
+namespace: minecraft
+
+resources:
+- minecraft-server-seamus.yaml
+- minecraft-server-teagan.yaml

@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bedrock-seamus-configmap
+  labels:
+    role: service-config
+    app: bedrock-server-seamus
+data:
+  # Find more options at https://github.com/itzg/docker-minecraft-bedrock-server#server-properties
+  # Remove # from in front of line if changing from default values.
+  EULA: "TRUE" # Must accept EULA to use this minecraft server
+  #GAMEMODE: "survival" # Options: survival, creative, adventure
+  DIFFICULTY: "normal" # Options: peaceful, easy, normal, hard
+  #DEFAULT_PLAYER_PERMISSION_LEVEL: "member" # Options: visitor, member, operator
+  #LEVEL_NAME: "my_minecraft_world"
+  #LEVEL_SEED: "33480944"
+  OPS: "2535466844222619"
+  SERVER_NAME: "Seamus' Bedrock Server"
+  SERVER_PORT: "30132"
+  SERVER_PORT_V6: "30133"
+  #LEVEL_TYPE: "DEFAULT" # Options: FLAT, LEGACY, DEFAULT
+  #ALLOW_CHEATS: "false" # Options: true, false
+  MAX_PLAYERS: "20"
+  #PLAYER_IDLE_TIMEOUT: "30"
+  #TEXTUREPACK_REQUIRED: "false" # Options: true, false
+  #
+  ## Changing these will have a security impact
+  #ONLINE_MODE: "true" # Options: true, false (removes Xbox Live account requirements)
+  #WHITE_LIST: "false" # If enabled, need to provide a whitelist.json by your own means. 
+  #
+  ## Changing these will have a performance impact
+  VERSION: "latest"
+  #VIEW_DISTANCE: "10"
+  #TICK_DISTANCE: "4"
+  MAX_THREADS: "16"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: bedrock-server-seamus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: bedrock-server-seamus
+  name: bedrock-server-seamus
+spec:
+  # never more than 1 since minecraft bedrock is not horizontally scalable
+  replicas: 1
+  serviceName: bedrock-server-seamus
+  selector:
+    matchLabels:
+      app: bedrock-server-seamus
+  template:
+    metadata:
+      labels:
+        app: bedrock-server-seamus
+    spec:
+      containers:
+        - name: bedrock-server-seamus
+          image: itzg/minecraft-bedrock-server
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: bedrock-seamus-configmap
+          volumeMounts:
+            - mountPath: /data
+              name: data
+          ports:
+            - containerPort: 30132
+              protocol: UDP
+          readinessProbe: &probe
+            exec:
+              command:
+                - mc-monitor
+                - status-bedrock
+                - --host
+                # force health check against IPv4 port
+                - 127.0.0.1
+            initialDelaySeconds: 30
+          livenessProbe: *probe
+          tty: true
+          stdin: true
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bedrock-server-seamus
+spec:
+  selector:
+    app: bedrock-server-seamus
+  ports:
+    - protocol: UDP
+      port: 30132
+      targetPort: 30132
+      nodePort: 30132
+  ipFamily: IPv4
+  # Use LoadBalancer if running on a provider that supports that
+#  type: LoadBalancer
+  # or use NodePort on a non-managed system;
+  # however, you'll need to lookup port assigned to the service
+  type: NodePort

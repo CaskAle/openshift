@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft-teagan-loadbalancer
+spec:
+  ports:
+  - name: port-game
+    port: 30065
+  loadBalancerIP:
+  loadBalancerSourceRanges: 
+  type: LoadBalancer 
+  selector:
+    name: minecraft-teagan-ingress
