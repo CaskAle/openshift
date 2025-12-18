@@ -62,7 +62,7 @@ oc delete secret kubeadmin -n kube-system
 
 ### Install the LVM Storage Operator
 
-### Create the PVC in advance for SNO
+### Create the PVC in advance for LVM Storage
 
 ```yaml
 apiVersion: v1
@@ -307,4 +307,3 @@ xfs_growfs /sysroot
  ```
 
 ## Set cpu governor on nodes
-

@@ -8,36 +8,14 @@ spec:
   desiredState:
     interfaces:
       - name: enp1s0u2
+        state: up
         type: ethernet
+      - bridge:
+          options:
+            stp:
+              enabled: false
+          port:
+            - name: enp1s0u2
+        name: br-vm
         state: up
-        ipv4:
-          enabled: false
-      - name: enp1s0u2.20
-        type: vlan 
-        state: absent
-        vlan:
-          base-iface: enp1s0u2 
-          id: 20  
-      - name: br-vm
         type: linux-bridge
-        bridge:
-          options:
-            stp: 
-              enabled: true
-          port:
-            - name: enp1s0u2
-        state: up
-      - name: br0
-        type: ovs-bridge
-        state: absent
-        bridge:
-          options:
-            stp: 
-              enabled: true
-          port:
-            - name: enp1s0u2
-    ovn:
-      bridge-mappings:
-      - localnet: br0-network
-        bridge: br0 
-        state: absent  
