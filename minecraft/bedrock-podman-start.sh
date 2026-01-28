@@ -2,7 +2,9 @@
 
 # Start the podman bedrock server
 
-sudo podman run -d -it --name minecraft-bedrock \
+sudo podman run \
+  -d \
+  -it \
   -v mc-bedrock-data:/data \
   -p 30132:30132/udp \
   -e MAX_THREADS="16" \
@@ -13,4 +15,5 @@ sudo podman run -d -it --name minecraft-bedrock \
   -e SERVER_NAME="Sean's Bedrock Server" \
   -e VERSION="latest" \
   -e OPS="2535466844222619" \
+  --name minecraft-bedrock \
   itzg/minecraft-bedrock-server

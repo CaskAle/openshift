@@ -84,7 +84,7 @@ spec:
 oc edit configs.imageregistry.operator.openshift.io
 ```
 
-Changes:
+Changes for sno:
 
 ```yaml
 spec:
@@ -93,6 +93,17 @@ spec:
   storage:
     pvc:
       claim: image-registry-storage
+```
+
+For full cluster:
+
+```yaml
+spec:
+  managementState: Managed
+  rolloutStrategy: RollingUpdate
+  storage:
+    pvc:
+      claim:
 ```
 
 ## Replace tls certificate with LetsEncrypt certificate
@@ -257,14 +268,14 @@ oc apply -f cluster-monitoring-config.yaml
 apiVersion: nmstate.io/v1
 kind: NodeNetworkConfigurationPolicy
 metadata:
-  name: br-ex-network
+  name: br-ex-vlan20
 spec:
   nodeSelector:
     node-role.kubernetes.io/worker: '' 
   desiredState:
     ovn:
       bridge-mappings:
-      - localnet: br-ex-network
+      - localnet: br-ex-vlan20
         bridge: br-ex 
         state: present
 ```
@@ -276,15 +287,15 @@ apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
   annotations: {}
-  name: br-ex-network
+  name: br-ex-vlan20
   namespace: virtual-machines
 spec:
   config: |-
     {
         "cniVersion": "0.4.0",
-        "name": "br-ex-network",
+        "name": "br-ex-vlan20",
         "type": "ovn-k8s-cni-overlay",
-        "netAttachDefName": "virtual-machines/br-ex-network",
+        "netAttachDefName": "virtual-machines/br-ex-vlan20",
         "topology": "localnet"
     }
 ```

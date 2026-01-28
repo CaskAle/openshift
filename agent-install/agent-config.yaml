@@ -1,0 +1,6 @@
+apiVersion: v1beta1
+kind: AgentConfig
+metadata:
+  name: okd-cluster
+rendezvousIP: 2600:1702:4fc0:12ae::20:22
+#rendezvousIP: 192.168.20.22
