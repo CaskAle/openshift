@@ -1,7 +1,7 @@
-        [Unit]
-        Description=Change CPU governor to conservative
-        After=systemd-update-done.target
+[Unit]
+Description=Change CPU governor to conservative
+After=systemd-update-done.target
 
-        [Service]
-        Type=simple
-        ExecStart=/bin/echo conservative | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+[Service]
+Type=simple
+ExecStart=/bin/echo conservative | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor

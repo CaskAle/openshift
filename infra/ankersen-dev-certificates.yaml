@@ -1,0 +1,42 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: apps-ocp-ankersen-dev-certificate
+  namespace: openshift-ingress
+spec:
+  commonName: apps.ocp.ankersen.dev
+  dnsNames:
+    - "apps.ocp.ankersen.dev" 
+    - "*.apps.ocp.ankersen.dev"
+  secretName: apps-ocp-ankersen-dev-tls
+  isCA: false
+  privateKey:
+    algorithm: ECDSA
+    rotationPolicy: Always
+    size: 384
+  issuerRef:
+    group: cert-manager.io
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: api-ocp-ankersen-dev-certificate
+  namespace: openshift-config
+spec:
+  commonName: api.ocp.ankersen.dev
+  dnsNames:
+    - "api.ocp.ankersen.dev" 
+  secretName: api-ocp-ankersen-dev-tls
+  isCA: false
+  privateKey:
+    algorithm: ECDSA
+    rotationPolicy: Always
+    size: 384
+  issuerRef:
+    group: cert-manager.io
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer    
