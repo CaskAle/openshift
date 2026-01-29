@@ -6,7 +6,7 @@ Details are at: <https://docs.redhat.com/en/documentation/openshift_container_pl
 
 ### Create an htpasswd file
 
-```sh
+```bash
 htpasswd -c -B -b </path/to/htpasswd> <username> <password>
 ```
 
@@ -17,7 +17,7 @@ htpasswd -c -B -b </path/to/htpasswd> <username> <password>
 
 This will create a secret in the openshift-config namespace based upon the htpasswd file created in the step above.
 
-```sh
+```bash
 oc create secret generic htpasswd-secret \
   --from-file=htpasswd=htpasswd \
   -n openshift-config
@@ -27,86 +27,57 @@ oc create secret generic htpasswd-secret \
 
 This will create the htpasswd identity provider.  It will use the htpasswd-secret secret created in the step above
 
-```yaml
-apiVersion: config.openshift.io/v1
-kind: OAuth
-metadata:
-  name: cluster
-spec:
-  identityProviders:
-    - name: htpasswd-provider-oauth
-      mappingMethod: claim 
-      type: HTPasswd
-      htpasswd:
-        fileData:
-          name: htpasswd-secret
-```
-
-```zsh
+```bash
 oc apply -f htpasswd-provider-oauth.yaml
 ```
 
 ### Give user "troy" admin priviledges
 
-```zsh
+```bash
 oc adm policy add-cluster-role-to-user cluster-admin troy
 ```
 
 ### Delete the kubeadmin user
 
-```sh
+```bash
 oc delete secret kubeadmin -n kube-system
 ```
 
+## Set up csi-nfs storage via helm chart
+
+## Install the LVM Storage Operator
+
 ## Set up image registry storage
 
-### Install the LVM Storage Operator
+### If cluster is SNO, create the PVC in advance for LVM Storage
 
-### Create the PVC in advance for LVM Storage
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: image-registry-storage
-  namespace: openshift-image-registry
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 100Gi
+```bash
+oc apply -f sno-image-registry-storage-pvc.yaml
 ```
 
 ### Modify the image registry configuration
 
-```sh
+```bash
 oc edit configs.imageregistry.operator.openshift.io
 ```
 
-Changes for sno:
+For HA cluster:
 
-```yaml
-spec:
-  managementState: Managed
-  rolloutStrategy: Recreate
-  storage:
-    pvc:
-      claim: image-registry-storage
+```bash
+oc patch configs.imageregistry.operator.openshift.io/cluster \
+  --type=merge \
+  --patch-file=image-registry-storage-patch.json
 ```
 
-For full cluster:
+For SNO cluster:
 
-```yaml
-spec:
-  managementState: Managed
-  rolloutStrategy: RollingUpdate
-  storage:
-    pvc:
-      claim:
+```bash
+oc patch configs.imageregistry.operator.openshift.io/cluster \
+  --type=merge \
+  --patch-file=sno-image-registry-storage-patch.json
 ```
 
-## Replace tls certificate with LetsEncrypt certificate
+## Replace tls certificates with LetsEncrypt certificates
 
 Details are at: <https://stephennimmo.com/2024/05/15/generating-lets-encrypt-certificates-with-red-hat-openshift-cert-manager-operator-using-the-cloudflare-dns-solver/>
 
@@ -116,147 +87,73 @@ Details are at: <https://stephennimmo.com/2024/05/15/generating-lets-encrypt-cer
 
 ### Create a secret for Cloudflare dns api token
 
-```zsh
+```bash
 oc create secret generic cloudflare-api-token-secret \
   -n cert-manager \
   --from-literal=api-token=<token>
   ```
 
-### Create a LetsEncrypt ClusterIssuer
+### Create a LetsEncrypt ClusterIssuer and ankersen.dev certificates
 
-```yaml
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-cluster-issuer
-spec:
-  acme:
-    server: 'https://acme-v02.api.letsencrypt.org/directory'
-    privateKeySecretRef:
-      name: acme-account-private-key
-    solvers:
-      - dns01:
-          cloudflare:
-            apiTokenSecretRef:
-              key: api-token
-              name: cloudflare-api-token-secret
-```
-
-### Create wildcard ingress Certificate
-
-```yaml
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: apps-ocp-ankersen-dev-certificate
-  namespace: openshift-ingress
-spec:
-  commonName: apps.ocp.ankersen.dev
-  dnsNames:
-    - "apps.ocp.ankersen.dev" 
-    - "*.apps.ocp.ankersen.dev"
-  secretName: apps-ocp-ankersen-dev-tls
-  isCA: false
-  privateKey:
-    algorithm: ECDSA
-    rotationPolicy: Always
-    size: 384
-  issuerRef:
-    group: cert-manager.io
-    name: letsencrypt-cluster-issuer
-    kind: ClusterIssuer
+```bash
+oc apply -f ankersen-dev-certificates.yaml
 ```
 
 ### Download the LetsEncrypt CA certificate
 
 <https://letsencrypt.org/certs/isrgrootx1.pem>
 
-```zsh
+```bash
 curl https://letsencrypt.org/certs/isrgrootx1.pem > ./letsencrypt.pem
 ```
 
 ### Create a ConfigMap for LetsEncrypt ca certificate
 
-```zsh
-oc create configmap trusted-ca \
+```bash
+oc create configmap letsencrypt-ca \
   --from-file=ca-bundle.crt=./letsencrypt.pem \
   -n openshift-config
 ```
 
-```zsh
+### Add LetsEncrypt ca to cluster
+
+```bash
 oc patch proxy cluster \
   --type=merge \
-  --patch='{"spec":{"trustedCA":{"name":"trusted-ca"}}}'
-```
-
-This can also be edited directly with:
-
-```zsh
-oc edit proxy cluster
+  --patch='{"spec": {"trustedCA": {"name": "letsencrypt-ca"}}}'
 ```
 
 ### Update the default IngressController to use the LetsEncrypt wildcard tls
 
-```zsh
+```bash
 oc patch ingresscontroller.operator default \
   --type=merge \
-  --patch '{"spec":{"defaultCertificate": {"name": "apps-ocp-ankersen-dev-tls"}}}' \
+  --patch '{"spec": {"defaultCertificate": {"name": "apps-ocp-ankersen-dev-tls"}}}' \
   -n openshift-ingress-operator
 ```
 
-This can also be edited directly with:
+### Update the api server to use the LetsEncrypt wildcard tls
 
-```zsh
-oc edit ingresscontroller.operator default \
-  -n openshift-ingress-operator
-
-```
-
-### Create api server Certificate
-
-```yaml
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: api-ocp-ankersen-dev-certificate
-  namespace: openshift-config
-spec:
-  commonName: api.ocp.ankersen.dev
-  dnsNames:
-    - "api.ocp.ankersen.dev" 
-  secretName: api-ocp-ankersen-dev-tls
-  isCA: false
-  privateKey:
-    algorithm: ECDSA
-    rotationPolicy: Always
-    size: 384
-  issuerRef:
-    group: cert-manager.io
-    name: letsencrypt-cluster-issuer
-    kind: ClusterIssuer
-```
-
-```zsh
+```bash
 oc patch apiserver cluster \
   --type=merge \
-  --patch '{"spec":{"servingCerts": {"namedCertificates": [{"names": ["api.ocp.ankersen.dev"], "servingCertificate": {"name": "api-ocp-ankersen-dev-tls"}}]}}}' 
+  --patch '{"spec": {"servingCerts": {"namedCertificates": [{"names": ["api.ocp.ankersen.dev"], "servingCertificate": {"name": "api-ocp-ankersen-dev-tls"}}]}}}' 
 ```
 
-## AlertManager Receivers
+## Alerting Setup
 
-gmail smtp: smtp.gmail.com:587
+### AlertManager Default Receiver
 
-gmail userid: CaskAle13c
+SMTP smarthost: smtp.gmail.com:587  
+Auth username: CaskAle13c  
+Auth password (using LOGIN and PLAIN): use app password
 
-gmail password: use app password
+### Set up persistent storage for cluster monitoring
 
-## Set up persistent storage for cluster monitoring
-
-- Use the ConfigMap already created
 - Assumes that the LVM Storage Operator is installed.
 - StorageClass `odf-lvm-vg1`
 
-```sh
+```bash
 oc apply -f cluster-monitoring-config.yaml
 ```
 
@@ -302,7 +199,7 @@ spec:
 
 ## Grow the root filesystem in CoreOS
 
-```zsh
+```bash
 sudo su
 growpart /dev/sda 4
 sudo su -
@@ -313,7 +210,7 @@ xfs_growfs /sysroot
 
 ## Set up etcd defragmentation cron job
 
-```zsh
+```bash
  oc create -k kustomization.yaml
  ```
 

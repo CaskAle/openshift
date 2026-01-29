@@ -1,0 +1,1 @@
+{"spec": {"managementState": "Managed", "replicas": 2, "rolloutStrategy": "Recreate", "storage": {"pvc": {"claim": ""}}}}
