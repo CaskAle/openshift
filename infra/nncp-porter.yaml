@@ -1,0 +1,27 @@
+---
+apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+  name: nncp-porter
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: porter
+  desiredState:
+    interfaces:
+      - name: enp7s0f3u1
+        state: up
+        type: ethernet
+      - bridge:
+          options:
+            stp:
+              enabled: false
+          port:
+            - name: enp7s0f3u1
+        name: br-vm
+        state: up
+        type: linux-bridge
+    ovn:
+      bridge-mappings:
+        - bridge: br-ex
+          localnet: br-ex-network
+          state: present

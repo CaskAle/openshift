@@ -1,0 +1,11 @@
+apiVersion: performance.openshift.io/v2
+kind: PerformanceProfile
+metadata:
+  name: cpufreq-adjustments
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: ''
+  cpu:
+    reserved: "0-15"
+  additionalKernelArgs:
+  - cpufreq.default_governor=powersave

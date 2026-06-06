@@ -1,0 +1,22 @@
+---
+apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+  name: nncp-bitter
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: bitter
+  desiredState:
+    interfaces:
+      - name: enp1s0u2
+        state: up
+        type: ethernet
+      - bridge:
+          options:
+            stp:
+              enabled: false
+          port:
+            - name: enp1s0u2
+        name: br-vm
+        state: up
+        type: linux-bridge

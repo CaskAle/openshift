@@ -1,0 +1,1 @@
+{"spec": {"managementState": "Managed", "replicas": 2, "rolloutStrategy": "RollingUpdate", "storage": {"pvc": {"claim": "image-registry-storage"}}}}
